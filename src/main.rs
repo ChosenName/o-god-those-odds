@@ -50,6 +50,6 @@ mod tests {
     /// 2,104,490.00 ns/iter (+/- 56,462.25)
     /// or 2.1 sec/iter (+/- 0.056)
     fn bench(bencher: &mut Bencher) {
-        bencher.iter(|| calculate_odds(1_000_000_000, 231))
+        bencher.iter(|| calculate_odds(1_000_000, 231))
     }
 }
