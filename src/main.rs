@@ -19,7 +19,7 @@ fn calculate_attempt(tries: u32) -> u32 {
 fn calculate_moves(out_of: u32, rng: &mut ThreadRng) -> u32 {
     assert!(out_of <= 16);
     let moves: u32 = rng.gen();
-    (moves >> out_of) & moves
+    (moves >> out_of) & (moves & ((1 << out_of) - 1))
 }
 
 /// Uses rayon to calculate iterations in parallel
