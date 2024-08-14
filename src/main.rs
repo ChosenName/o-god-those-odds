@@ -48,7 +48,7 @@ mod tests {
     /// base clock 3.7 Ghz
     /// boost clock 5.4 Ghz
     /// 2,104,490.00 ns/iter (+/- 56,462.25)
-    /// or 2.1 sec/iter (+/- 0.056)
+    /// or 0.0021 sec/iter (+/- 0.000056)
     fn bench(bencher: &mut Bencher) {
         bencher.iter(|| calculate_odds(1_000_000, 231))
     }
