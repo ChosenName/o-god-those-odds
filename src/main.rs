@@ -1,6 +1,6 @@
 #![feature(test)] // enable benchmarks
 
-use rand::{rngs::ThreadRng, Rng};
+use rand::prelude::*;
 use rayon::prelude::*;
 
 /// calculates the number of turns lost out of `tries` attempts
@@ -50,6 +50,6 @@ mod tests {
     /// 2,104,490.00 ns/iter (+/- 56,462.25)
     /// or 0.0021 sec/iter (+/- 0.000056)
     fn bench(bencher: &mut Bencher) {
-        bencher.iter(|| calculate_odds(1_000_000, 231))
+        bencher.iter(|| calculate_odds(1_000_000_000, 231))
     }
 }
