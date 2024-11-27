@@ -4,12 +4,8 @@
 use rand::prelude::*;
 use rayon::prelude::*;
 
-/// calculates the number of turns lost out of `tries` attempts
-fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
-    let mut turns_lost: u64 = 0;
-    for mut i in 0u64..8 {
-        let mut n: u64 = rng.gen();
-        // This is faster for some reason
+macro_rules! assembly_algorithm {
+    ($i:ident, $sum:ident, $value:ident) => {
         #[allow(unused_assignments, reason = "used in asm block")]
         unsafe {
             std::arch::asm!(
@@ -23,8 +19,8 @@ fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
                 // if i == 0 {
                 //     a &= 0b1111111
                 // }
-                "test {i}, {i}", // is zero
-                "jne 2f",
+                "test {i}, {i}",
+                "je 2f",
                 "and {a}, 0x7f",
                 "2:",
 
@@ -32,13 +28,23 @@ fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
                 "popcnt {a}, {a}",
                 "add {sum}, {a}",
 
-                a = inout(reg) n,
+                a = inout(reg) $value,
                 b = out(reg) _,
-                i = inout(reg) i,
-                sum = inout(reg) turns_lost,
-                options(nomem, pure, nostack),
+                i = inout(reg) $i,
+                sum = inout(reg) $sum,
+                //options(nomem, pure, nostack),
             )
         }
+    };
+}
+
+/// calculates the number of turns lost out of `tries` attempts
+fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
+    let mut turns_lost: u64 = 0;
+    for mut i in 0u64..8 {
+        let mut n: u64 = rng.gen();
+        // Assembly is faster for some reason
+        assembly_algorithm!(i, n, turns_lost);
     }
     turns_lost
 }
@@ -85,27 +91,61 @@ mod tests {
     fn assembly_is_zero() {
         let a = 0;
         let b = 1;
-        let mut a_correct = 1;
-        let mut b_correct = 1;
+        let mut a_is_zero = 0;
+        let mut b_is_zero = 0;
 
         unsafe {
             std::arch::asm!(
                 "test {a:e}, {a:e}",
-                "je 2f",
-                "mov {a_correct:e}, 0",
+                "jne 2f",
+                "mov {a_is_zero:e}, 1",
                 "2:",
                 "test {b:e}, {b:e}",
                 "jne 3f",
-                "mov {b_correct:e}, 0",
+                "mov {b_is_zero:e}, 1",
                 "3:",
                 a = in(reg) a,
                 b = in(reg) b,
-                a_correct = inout(reg) a_correct,
-                b_correct = inout(reg) b_correct,
+                a_is_zero = inout(reg) a_is_zero,
+                b_is_zero = inout(reg) b_is_zero,
             )
         }
 
-        assert!(a_correct == 1);
-        assert!(b_correct == 1);
+        assert!(a_is_zero == 1);
+        assert!(b_is_zero == 0);
+    }
+
+    #[test]
+    fn verify_assembly() {
+        let values = [
+            0x00000000_00000000u64,
+            0xffffffff_ffffffff,
+            0x0000007f_0000007f,
+            0xffffffff_ffffff7f,
+            0xFFFF_FF80_FFFF_FF80,
+            0xffff_ffff_0000_0000,
+            0x0000_0000_ffff_ffff,
+        ];
+        let expected = [
+            (0u64, 0u64),
+            (32, 7),
+            (7, 7),
+            (31, 7),
+            (25, 0),
+            (0, 0),
+            (0, 0),
+        ];
+        for (v, (high, low)) in values.into_iter().zip(expected) {
+            let mut sum = 0;
+            let mut zero = 0u64;
+            let mut one = 1u64;
+            let mut o = v;
+            assembly_algorithm!(one, sum, o);
+            assert_eq!(sum, low, "{v:0X}");
+            sum = 0;
+            o = v;
+            assembly_algorithm!(zero, sum, o);
+            assert_eq!(sum, high, "{v:0X}");
+        }
     }
 }
