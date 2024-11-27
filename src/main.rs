@@ -16,18 +16,18 @@ fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
                 // b = a >> 32;
                 "mov {b}, {a}",
                 "shr {b}, 32",
-                
+
                 // a &= b;
                 "and {a}, {b}",
 
                 // if i == 0 {
                 //     a &= 0b1111111
-                // } 
+                // }
                 "test {i}, {i}", // is zero
                 "jne 2f",
                 "and {a}, 0x7f",
                 "2:",
-                
+
                 // sum += a.count_ones()
                 "popcnt {a}, {a}",
                 "add {sum}, {a}",
@@ -76,8 +76,7 @@ mod tests {
     /// 24 threads
     /// base clock 3.7 Ghz
     /// boost clock 5.4 Ghz
-    /// 2,104,490.00 ns/iter (+/- 56,462.25)
-    /// or 0.0021 sec/iter (+/- 0.000056)
+    /// 1,283,788.75 ns/iter (+/- 38,464.50)
     fn bench(bencher: &mut Bencher) {
         bencher.iter(|| calculate_odds(1_000_000))
     }
@@ -108,6 +107,5 @@ mod tests {
 
         assert!(a_correct == 1);
         assert!(b_correct == 1);
-
     }
 }

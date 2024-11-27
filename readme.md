@@ -1,6 +1,6 @@
 # o-ogod-those-odds
 
-uses the [rayon][1] crate for parallelization and [rand][2] for rng.
+uses the [rayon][1] crate for parallelization and [rand][2] to preform 1,000,000 double coin flips in 1,283,788.75 ns.
 
 ## Multithreading 
 The [`ParallelIterator::map_init`][3] method allows us to reuse [`ThreadRng`][4] between iterations.
@@ -27,7 +27,9 @@ And truth table
 ## Assembly 
 For some reason preforming the shifting in an assembly block makes this algorithm faster. This could be due to a reduced number of branches.
 
+## Proof
 
+![](proof.png)
 
 
 [1]: https://docs.rs/rand/latest/rayon/
