@@ -1,35 +1,64 @@
+#![allow(internal_features)]
 #![feature(test)] // enable benchmarks
 
 use rand::prelude::*;
 use rayon::prelude::*;
 
 /// calculates the number of turns lost out of `tries` attempts
-fn calculate_attempt(tries: u32) -> u32 {
-    let mut rng = rand::thread_rng();
-    let mut turns_lost: u32 = 0;
-    for _ in 0..(tries / 16) {
-        let moves: u32 = calculate_moves(16, &mut rng);
-        turns_lost += moves.count_ones();
+fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
+    let mut turns_lost: u64 = 0;
+    for mut i in 0u64..8 {
+        let mut n: u64 = rng.gen();
+        // This is faster for some reason
+        #[allow(unused_assignments, reason = "used in asm block")]
+        unsafe {
+            std::arch::asm!(
+                // b = a >> 32;
+                "mov {b}, {a}",
+                "shr {b}, 32",
+                
+                // a &= b;
+                "and {a}, {b}",
+
+                // if i == 0 {
+                //     a &= 0b1111111
+                // } 
+                "test {i}, {i}", // is zero
+                "jne 2f",
+                "and {a}, 0x7f",
+                "2:",
+                
+                // sum += a.count_ones()
+                "popcnt {a}, {a}",
+                "add {sum}, {a}",
+
+                a = inout(reg) n,
+                b = out(reg) _,
+                i = inout(reg) i,
+                sum = inout(reg) turns_lost,
+                options(nomem, pure, nostack),
+            )
+        }
     }
-    turns_lost + calculate_moves(tries % 16, &mut rng).count_ones()
+    turns_lost
 }
 
-/// generates `out_of` moves from one call of rand. Since there are 32 bits generated and 2 bits are needed for 1/4 odds
-/// the max number of moves is 16.
-fn calculate_moves(out_of: u32, rng: &mut ThreadRng) -> u32 {
-    assert!(out_of <= 16);
-    let moves: u32 = rng.gen();
-    (moves >> out_of) & (moves & ((1 << out_of) - 1))
-}
-
+#[inline(never)]
 /// Uses rayon to calculate iterations in parallel
-fn calculate_odds(iterations: usize, moves_per_try: u32) -> u32 {
-    (0..iterations).into_par_iter().map(|_| {calculate_attempt(moves_per_try)}).max().expect("`iterations` must not be zero")
+fn calculate_odds(iterations: usize) -> u64 {
+    if iterations == 0 {
+        return 0;
+    }
+    (0..iterations)
+        .into_par_iter()
+        .map_init(rand::thread_rng, |rand, _| calculate_attempt(rand))
+        .max()
+        .unwrap_or(0)
 }
 
 /// run with `cargo run --release` for optimizations
 fn main() {
-    println!("{:?}", calculate_odds(1_000_000_000, 231));
+    println!("{}", calculate_odds(1_000_000));
 }
 
 #[cfg(test)]
@@ -50,6 +79,35 @@ mod tests {
     /// 2,104,490.00 ns/iter (+/- 56,462.25)
     /// or 0.0021 sec/iter (+/- 0.000056)
     fn bench(bencher: &mut Bencher) {
-        bencher.iter(|| calculate_odds(1_000_000_000, 231))
+        bencher.iter(|| calculate_odds(1_000_000))
+    }
+
+    #[test]
+    fn assembly_is_zero() {
+        let a = 0;
+        let b = 1;
+        let mut a_correct = 1;
+        let mut b_correct = 1;
+
+        unsafe {
+            std::arch::asm!(
+                "test {a:e}, {a:e}",
+                "je 2f",
+                "mov {a_correct:e}, 0",
+                "2:",
+                "test {b:e}, {b:e}",
+                "jne 3f",
+                "mov {b_correct:e}, 0",
+                "3:",
+                a = in(reg) a,
+                b = in(reg) b,
+                a_correct = inout(reg) a_correct,
+                b_correct = inout(reg) b_correct,
+            )
+        }
+
+        assert!(a_correct == 1);
+        assert!(b_correct == 1);
+
     }
 }

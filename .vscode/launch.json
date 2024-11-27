@@ -1,0 +1,65 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'o-god-those-odds'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=o-god-those-odds",
+                    "--package=o-god-those-odds"
+                ],
+                "filter": {
+                    "name": "o-god-those-odds",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'o-god-those-odds'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=o-god-those-odds",
+                    "--package=o-god-those-odds"
+                ],
+                "filter": {
+                    "name": "o-god-those-odds",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug benches in executable 'o-god-those-odds'",
+            "cargo": {
+                "args": [
+                    "bench",
+                    "--no-run",
+                    "--bin=o-god-those-odds",
+                    "--package=o-god-those-odds"
+                ],
+                "filter": {
+                    "name": "o-god-those-odds",
+                    "kind": "bin"
+                }
+            },
+            "stopOnEntry": true,
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
