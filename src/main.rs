@@ -4,47 +4,31 @@
 use rand::prelude::*;
 use rayon::prelude::*;
 
-macro_rules! assembly_algorithm {
-    ($i:ident, $sum:ident, $value:ident) => {
-        #[allow(unused_assignments, reason = "used in asm block")]
-        unsafe {
-            std::arch::asm!(
-                // b = a >> 32;
-                "mov {b}, {a}",
-                "shr {b}, 32",
-
-                // a &= b;
-                "and {a}, {b}",
-
-                // if i == 0 {
-                //     a &= 0b1111111
-                // }
-                "test {i}, {i}",
-                "je 2f",
-                "and {a}, 0x7f",
-                "2:",
-
-                // sum += a.count_ones()
-                "popcnt {a}, {a}",
-                "add {sum}, {a}",
-
-                a = inout(reg) $value,
-                b = out(reg) _,
-                i = inout(reg) $i,
-                sum = inout(reg) $sum,
-                //options(nomem, pure, nostack),
-            )
-        }
-    };
-}
-
 /// calculates the number of turns lost out of `tries` attempts
 fn calculate_attempt(rng: &mut ThreadRng) -> u64 {
     let mut turns_lost: u64 = 0;
-    for mut i in 0u64..8 {
-        let mut n: u64 = rng.gen();
+    let mask: u64 = 0x7FFFFFFFFF;
+    for mut i in 0u64..4 {
+        let mut a: u64 = rng.gen();
+        let b: u64 = rng.gen();
         // Assembly is faster for some reason
-        assembly_algorithm!(i, n, turns_lost);
+        #[allow(unused_assignments, reason = "used in asm block")]
+        unsafe {
+            std::arch::asm!(
+                "and {a}, {b}",
+                "test {i}, {i}",
+                "jne 2f",
+                "and {a}, {mask}",
+                "2:",
+                "popcnt {a}, {a}",
+                "add {sum}, {a}",
+                a = inout(reg) a,
+                b = in(reg) b,
+                i = inout(reg) i,
+                sum = inout(reg) turns_lost,
+                mask = in(reg) mask,
+            )
+        }
     }
     turns_lost
 }
@@ -64,7 +48,7 @@ fn calculate_odds(iterations: usize) -> u64 {
 
 /// run with `cargo run --release` for optimizations
 fn main() {
-    println!("{}", calculate_odds(1_000_000));
+    println!("{}", calculate_odds(100_000_000));
 }
 
 #[cfg(test)]
@@ -113,39 +97,5 @@ mod tests {
 
         assert!(a_is_zero == 1);
         assert!(b_is_zero == 0);
-    }
-
-    #[test]
-    fn verify_assembly() {
-        let values = [
-            0x00000000_00000000u64,
-            0xffffffff_ffffffff,
-            0x0000007f_0000007f,
-            0xffffffff_ffffff7f,
-            0xFFFF_FF80_FFFF_FF80,
-            0xffff_ffff_0000_0000,
-            0x0000_0000_ffff_ffff,
-        ];
-        let expected = [
-            (0u64, 0u64),
-            (32, 7),
-            (7, 7),
-            (31, 7),
-            (25, 0),
-            (0, 0),
-            (0, 0),
-        ];
-        for (v, (high, low)) in values.into_iter().zip(expected) {
-            let mut sum = 0;
-            let mut zero = 0u64;
-            let mut one = 1u64;
-            let mut o = v;
-            assembly_algorithm!(one, sum, o);
-            assert_eq!(sum, low, "{v:0X}");
-            sum = 0;
-            o = v;
-            assembly_algorithm!(zero, sum, o);
-            assert_eq!(sum, high, "{v:0X}");
-        }
     }
 }
